@@ -1,3 +1,7 @@
+from operator import mod
+import os
+from statistics import mode
+
 import networkx as nx
 import pandas as pd
 import numpy as np
@@ -11,13 +15,14 @@ import matplotlib.pyplot as plt
 
 warnings.filterwarnings('ignore')
 
+CUR_DIR = os.path.abspath(os.path.dirname(__file__))
+
 
 def build_graph():
     # 节点1 \t 节点2 \t 边权重
-    df = pd.read_csv("space_data.tsv", sep = "\t")
-    G=nx.from_pandas_edgelist(df, "source", "target", edge_attr=True, create_using=nx.Graph())
+    df = pd.read_csv(CUR_DIR + "/space_data.tsv", sep = "\t")
+    G = nx.from_pandas_edgelist(df, "source", "target", edge_attr = True, create_using=nx.Graph())
 
-    print(len(G))
     return G
 
 
@@ -48,17 +53,9 @@ def train_model(G):
 
     print(len(random_walks))
 
-    model = Word2Vec(window = 4, sg = 1, hs = 0,
-                    negative = 10,
-                    alpha=0.03, min_alpha=0.0007,
-                    seed = 14)
-
-    model.build_vocab(random_walks, progress_per=2)
-    model.train(random_walks, total_examples = model.corpus_count, epochs=20, report_delay=1)
+    model = Word2Vec(random_walks, sg = 1, hs = 0, min_count = 1, window = 4, size = 100, iter = 20)
 
     print(model)
-
-    model.similar_by_word('astronaut training')
 
     return model
 
@@ -75,13 +72,16 @@ def plot_nodes(word_list, model):
         plt.annotate(word, xy=(result[i, 0], result[i, 1]))
         
     plt.show()
+    # plt.savefig("./deepwalk.png",dpi=300) 
 
 
 if __name__ == "__main__":
     G = build_graph()
-    get_randomwalk('space exploration', 10, G)
+
     model = train_model(G)
-    terms = ['lunar escape systems', 'soviet moonshot', 'soyuz 7k-l1', 'moon landing',
+    print(model.similar_by_word('astronaut training'))
+
+    terms = ['lunar escape systems','soviet moonshot', 'soyuz 7k-l1', 'moon landing',
          'space food', 'food systems on space exploration missions', 'meal, ready-to-eat',
          'space law', 'metalaw', 'moon treaty', 'legal aspects of computing',
          'astronaut training', 'reduced-gravity aircraft', 'space adaptation syndrome', 'micro-g environment']
