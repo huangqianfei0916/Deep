@@ -1,5 +1,6 @@
 import numpy as np
 from collections import Counter
+import jieba
 
 class BM25(object):
     def __init__(self, query_list, k1=2, k2=1, b=0.5):
@@ -40,30 +41,33 @@ class BM25(object):
             score_list.append(self.get_score(i, query))
         return score_list
 
-query_list = ["火锅加盟排行榜",
-                 "奶茶加盟",
-                 "桥头排骨加盟费",
-                 "串串香加盟费多少",
-                 "泡面小食堂加盟",
-                 "大益茶加盟费多少"]
-import jieba
-query_list = [list(jieba.cut(doc)) for doc in query_list]
-bm25 = BM25(query_list)
-for item in bm25.query_list:
-    print(item)
-print("doc_num:",bm25.query_number)
-print("avg_len:",bm25.avg_query_len)
-print("f:")
-for item in bm25.f:
-    print(item)
-print(bm25.idf)
-query = "烧烤排骨加盟"
-query = list(jieba.cut(query))
-scores = bm25.get_query_score(query)
-print(scores)
-max_value = max(scores) #返回最大值
-max_index = scores.index(max(scores)) # 返回最大值的索引
-print("max_value:",max_value)
-print("index:",max_index)
-print("query",query)
-print("doc:",query_list[max_index])
+
+if __name__ == "__main__":
+
+    query_list = ["火锅加盟排行榜",
+                    "奶茶加盟",
+                    "桥头排骨加盟费",
+                    "串串香加盟费多少",
+                    "泡面小食堂加盟",
+                    "大益茶加盟费多少"]
+
+    query_list = [list(jieba.cut(doc)) for doc in query_list]
+    bm25 = BM25(query_list)
+    for item in bm25.query_list:
+        print(item)
+    print("doc_num:",bm25.query_number)
+    print("avg_len:",bm25.avg_query_len)
+
+    for item in bm25.f:
+        print(item)
+    print(bm25.idf)
+    query = "烧烤排骨加盟"
+    query = list(jieba.cut(query))
+    scores = bm25.get_query_score(query)
+    print(scores)
+    max_value = max(scores) #返回最大值
+    max_index = scores.index(max(scores)) # 返回最大值的索引
+    print("max_value:",max_value)
+    print("index:",max_index)
+    print("query",query)
+    print("doc:",query_list[max_index])

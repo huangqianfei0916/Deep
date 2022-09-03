@@ -1,4 +1,5 @@
 import numpy as np
+import jieba
 '''
 tf-idf
 tf是一个列表，其中存放很多词典（词典个数等于doc数量），词典是意思是每个词在单个doc的词频；可能不同的词典出现相同的词（key）；
@@ -40,35 +41,36 @@ class TF_IDF(object):
             score_list.append(self.get_score(i, query))
         return score_list
 
-query_list = ["火锅加盟排行榜",
-                 "奶茶加盟",
-                 "桥头排骨加盟费",
-                 "串串香加盟费多少",
-                 "泡面小食堂加盟",
-                 "大益茶加盟费多少"]
-import jieba
-query_list = [list(jieba.cut(doc)) for doc in query_list]
-tf_idf = TF_IDF(query_list)
-for item in tf_idf.query_list:
-    print(item)
-print(tf_idf.query_number)
-print("tf:")
-for item in tf_idf.tf:
-    print(item)
-print("idf:")
-print(tf_idf.idf)
+if __name__ == "__main__":
+    query_list = ["火锅加盟排行榜",
+                    "奶茶加盟",
+                    "桥头排骨加盟费",
+                    "串串香加盟费多少",
+                    "泡面小食堂加盟",
+                    "大益茶加盟费多少"]
 
-query = "烧烤排骨加盟"
-query = list(jieba.cut(query))
-print("概率：")
-scores = tf_idf.get_query_score(query)
-print(scores)
-max_value = max(scores) #返回最大值
-max_index = scores.index(max(scores)) # 返回最大值的索引
-print("max_value:",max_value)
-print("index:",max_index)
-print("query",query)
-print("doc:",query_list[max_index])
+    query_list = [list(jieba.cut(doc)) for doc in query_list]
+    tf_idf = TF_IDF(query_list)
+    for item in tf_idf.query_list:
+        print(item)
+    print(tf_idf.query_number)
+    print("tf:")
+    for item in tf_idf.tf:
+        print(item)
+    print("idf:")
+    print(tf_idf.idf)
+
+    query = "烧烤排骨加盟"
+    query = list(jieba.cut(query))
+    print("概率：")
+    scores = tf_idf.get_query_score(query)
+    print(scores)
+    max_value = max(scores) #返回最大值
+    max_index = scores.index(max(scores)) # 返回最大值的索引
+    print("max_value:",max_value)
+    print("index:",max_index)
+    print("query",query)
+    print("doc:",query_list[max_index])
 
 
 
