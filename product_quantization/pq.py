@@ -3,7 +3,7 @@ Descripttion:
 version: 
 Author: huangqianfei
 Date: 2022-06-18 10:02:33
-LastEditTime: 2022-09-04 19:43:21
+LastEditTime: 2022-09-04 19:59:53
 '''
 from select import select
 import numpy as np
@@ -264,7 +264,8 @@ if __name__ == '__main__':
     # https://mp.weixin.qq.com/s/5KkDjCJ_AoC0w7yh2WcOpg
 
     # ivfpq 针对亿级别数据
-    # pq虽然已经优化了计算量，但是还可以进一步优化，（在查表和求和还是全量数据进行）
+    # PQ乘积量化计算距离的时候，距离虽然已经预先算好了，但是对于每个样本到查询样本的距离，还是得老老实实挨个去求和相加计算距离
+    # 筛选出关注的区域就可以减少查表sum的计算
     # 1，先将数据进行粗聚类
     # 2，计算候选集和各自聚类中心的残差
     # 3，对残差数据进行编码
