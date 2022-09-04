@@ -1,3 +1,11 @@
+'''
+Descripttion: 
+version: 
+Author: huangqianfei
+Date: 2022-06-18 10:02:33
+LastEditTime: 2022-09-04 19:43:21
+'''
+from select import select
 import numpy as np
 from scipy.cluster.vq import kmeans2, vq
 
@@ -214,22 +222,54 @@ class DistanceTable(object):
 if __name__ == '__main__':
 
     N, Nt, D = 10000, 2000, 128
-    X = np.random.random((N, D)).astype(np.float32)  # 10,000 128-dim vectors to be indexed
-    Xt = np.random.random((Nt, D)).astype(np.float32)  # 2,000 128-dim vectors for training
-    query = np.random.random((D,)).astype(np.float32)  # a 128-dim query vector
+    # 10,000 128-dim vectors to be indexed
+    X = np.random.random((N, D)).astype(np.float32)  
+    # 2,000 128-dim vectors for training
+    Xt = np.random.random((Nt, D)).astype(np.float32)  
+    # query vector[128]
+    query = np.random.random((D,)).astype(np.float32)
 
-    # Instantiate with M=8 sub-spaces
-    pq = PQ(M=8)
+    pq = PQ(M = 8)
 
-    # Train codewords
-    # Xt:[2000,128]-》【8，256，16】
+    # Train    Xt:[2000,128] -> codewords 【8，256，16】（每一列256个聚类中心，一共8列，每个聚类中心是16d）
     # 首先将128d切分成16*8，然后将2000行聚类成256，就形成了【8，256，16】
     pq.fit(Xt)
 
     # Encode to PQ-codes
     # [10000,128]->[10000,16]*8 -> [10000, 8](将16变成和256类中最相似的序号，256类别在fit形成)
-    X_code = pq.encode(X)  # (10000, 8) with dtype=np.uint8
+    X_code = pq.encode(X)
 
     # Results: create a distance table online, and compute Asymmetric Distance to each PQ-code
     # 【128】-》【8*16】 和【8，256，16】求norm-》【8，256】
+    # 这里的X_code 是候选集，大小是 1w * 8，很明显这里1w * 8 都是means的编号
+    # 而query计算split成 8 * 16 之后，需要先计算和聚类中心的距离（这也是主要计算量），得到【8 * 256】的距离矩阵
+    # 将候选集合的1w * 8的编号通过查表（【8 * 256】的距离矩阵）得到1w * 8的距离向量，将8列进行sum得到query距离1w样本的距离，取topk
     dists = pq.dtable(query).adist(X_code)
+    # print(dists)
+
+
+    # 分析假如没有pq，计算一个128d向量和  10w的候选集合之间的最近的topk
+    # 需要计算10w 次 两个128d向量之间的内积，取topk
+
+    # 通过pq计算的话假设聚类256类， 切分 8个space
+    # 需要计算 256次 两个16d向量之间的内积，计算8对，然后查表，取topk
+
+
+    # pq量化的步骤分为4步
+    # 1， 切分子space并进行聚类得到聚类向量【8，256，16】
+    # 2， 将候选集合进行编码得到【1w， 8】
+    # -----下面为在线计算-------------
+    # 3，前面两步都是离线计算的，来一条query，切分，计算和各个聚类中心的距离得到【8 * 256】距离矩阵
+    # 4，将2中的编码在3中得到的距离矩阵中进行查表得到【1w， 8】，然后求和得到【1w】是query和这1w候选集的距离，取topk。
+    # https://mp.weixin.qq.com/s/5KkDjCJ_AoC0w7yh2WcOpg
+
+    # ivfpq 针对亿级别数据
+    # pq虽然已经优化了计算量，但是还可以进一步优化，（在查表和求和还是全量数据进行）
+    # 1，先将数据进行粗聚类
+    # 2，计算候选集和各自聚类中心的残差
+    # 3，对残差数据进行编码
+    # --------下面为在线计算---------
+    # 4，来一条query，判断它和各个聚类中心的距离，取topk个聚类中心
+    # 5，计算k个聚类中心下的候选集和query的距离作为最终的距离，再取topk
+
+
