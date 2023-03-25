@@ -1,7 +1,7 @@
 /*
  * @Author: huangqianfei
  * @Date: 2023-03-25 12:37:18
- * @LastEditTime: 2023-03-25 20:12:00
+ * @LastEditTime: 2023-03-25 21:26:50
  * @Description: word2vec 的cpp实现
  * 参考博客：https://blog.csdn.net/So_that/article/details/103146219?spm=1001.2014.3001.5502
  */
@@ -35,15 +35,16 @@ std::string OUTPUT_FILE = "./output_file.txt";
 
 struct vocab_word *vocab;
 int binary = 0, cbow = 1, debug_mode = 2, window = 5, min_count = 5, num_threads = 12, min_reduce = 1;
-
-long long vocab_max_size = 1000, vocab_size = 0, layer1_size = 100;
-long long train_words = 0, word_count_actual = 0, iter = 5, file_size = 0, classes = 0;
+long long vocab_max_size = 1000, emb_size = 100, iter = 5, file_size = 0, classes = 0;
 real alpha = 0.025, starting_alpha, sample = 1e-3;
-real *syn0, *syn1, *syn1neg;
+
+std::vector<real> word_emb;
+std::vector<real> syn1;
+std::vector<real> neg_emb;
+
 clock_t start;
 int hs = 0, negative = 5;
 const int table_size = 1e8;
-int *table;
 
 std::map<std::string, int> vocab_map;
 
@@ -101,11 +102,40 @@ void read_file(std::string& train_file) {
 
 }
 
+
+void init_net() {
+    word_emb.resize(vocab_map.size() * emb_size);
+    int vocab_size = vocab_map.size();
+
+    if (hs) {
+        // 才有hs优化算法时，初始化syn1
+        syn1.resize(vocab_size * emb_size);
+    }
+
+    if (negative > 0) {
+        // 负采样初始化
+        neg_emb.resize(vocab_size * emb_size)
+    }
+
+    //初始化word_emb数组（也就是词向量） 并不是0，范围是[-0.5/m,0.5/m],其中m词向量的维度。
+    for (int i = 0; i < vocab_size; ++i) {
+        for (int j = 0; j < emb_size; j++) {
+            next_random = next_random * (unsigned long long)25214903917 + 11;
+            word_emb[i * emb_size + j] = (((next_random & 0xFFFF) / (real)65536) - 0.5) / emb_size;
+        }
+    }
+
+    // 构建huffman 树
+    
+}
+
+
 // 训练
 void train(std::string& train_file) {
 
     read_file(train_file);
-    
+    init_net();
+
 
 }
 
@@ -123,9 +153,6 @@ int main(int argc, char *argv[]) {
     int index = 0;
     index = args_parse("-train", argc, argv);
     std::string train_file = argv[index + 1];
-
-    index = args_parse("-train", argc, argv);
-    layer1_size = atoi(argv[index + 1]);
 
     std::vector<real> exp_table(EXP_TABLE_SIZE);
     pre_calcate_sigmoid(exp_table);
