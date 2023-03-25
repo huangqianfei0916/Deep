@@ -1,7 +1,7 @@
 /*
  * @Author: huangqianfei
  * @Date: 2023-03-25 12:37:18
- * @LastEditTime: 2023-03-25 21:26:50
+ * @LastEditTime: 2023-03-25 21:28:56
  * @Description: word2vec 的cpp实现
  * 参考博客：https://blog.csdn.net/So_that/article/details/103146219?spm=1001.2014.3001.5502
  */
@@ -33,18 +33,16 @@ struct vocab_word
 
 std::string OUTPUT_FILE = "./output_file.txt";
 
-struct vocab_word *vocab;
 int binary = 0, cbow = 1, debug_mode = 2, window = 5, min_count = 5, num_threads = 12, min_reduce = 1;
 long long vocab_max_size = 1000, emb_size = 100, iter = 5, file_size = 0, classes = 0;
 real alpha = 0.025, starting_alpha, sample = 1e-3;
+clock_t start;
+int hs = 0, negative = 5;
+const int table_size = 1e8;
 
 std::vector<real> word_emb;
 std::vector<real> syn1;
 std::vector<real> neg_emb;
-
-clock_t start;
-int hs = 0, negative = 5;
-const int table_size = 1e8;
 
 std::map<std::string, int> vocab_map;
 
@@ -99,7 +97,6 @@ void read_file(std::string& train_file) {
             ++vocab_map[token];
         }
     }
-
 }
 
 
