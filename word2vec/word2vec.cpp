@@ -1,7 +1,7 @@
 /*
  * @Author: huangqianfei
  * @Date: 2023-03-25 12:37:18
- * @LastEditTime: 2023-03-25 21:28:56
+ * @LastEditTime: 2023-03-26 20:29:56
  * @Description: word2vec 的cpp实现
  * 参考博客：https://blog.csdn.net/So_that/article/details/103146219?spm=1001.2014.3001.5502
  */
@@ -33,11 +33,10 @@ struct vocab_word
 
 std::string OUTPUT_FILE = "./output_file.txt";
 
-int binary = 0, cbow = 1, debug_mode = 2, window = 5, min_count = 5, num_threads = 12, min_reduce = 1;
-long long vocab_max_size = 1000, emb_size = 100, iter = 5, file_size = 0, classes = 0;
-real alpha = 0.025, starting_alpha, sample = 1e-3;
+int binary = 0, cbow = 1, debug_mode = 2, window = 5, min_count = 2, num_threads = 12, min_reduce = 1, hs = 0, negative = 5;
+long long vocab_max_size = 1000, emb_size = 100, iter = 5, classes = 0;
+real alpha = 0.025, starting_alpha, sample = 1e-3, tw = 0;
 clock_t start;
-int hs = 0, negative = 5;
 const int table_size = 1e8;
 
 std::vector<real> word_emb;
@@ -45,6 +44,7 @@ std::vector<real> syn1;
 std::vector<real> neg_emb;
 
 std::map<std::string, int> vocab_map;
+std::map<std::string, int> word2index;
 
 // 参数解析
 int args_parse(std::string flag, int argc, char *argv[]) {
@@ -86,6 +86,7 @@ void split(const std::string s, std::vector<std::string>& tokens, const std::str
 
 
 
+
 void read_file(std::string& train_file) {
     std::ifstream f_r;
     f_r.open(train_file);
@@ -96,6 +97,15 @@ void read_file(std::string& train_file) {
         for (auto& token : tokens) {
             ++vocab_map[token];
         }
+    }
+
+    int index = 0;
+    for (auto& [key, value] : vocab_map) {
+        if (value < min_count) {
+            continue;
+        }
+        word2index[key] = index++;
+        tw += value;
     }
 }
 
@@ -111,27 +121,83 @@ void init_net() {
 
     if (negative > 0) {
         // 负采样初始化
-        neg_emb.resize(vocab_size * emb_size)
+        neg_emb.resize(vocab_size * emb_size);
     }
 
     //初始化word_emb数组（也就是词向量） 并不是0，范围是[-0.5/m,0.5/m],其中m词向量的维度。
     for (int i = 0; i < vocab_size; ++i) {
         for (int j = 0; j < emb_size; j++) {
-            next_random = next_random * (unsigned long long)25214903917 + 11;
+            unsigned long long next_random = next_random * (unsigned long long)25214903917 + 11;
             word_emb[i * emb_size + j] = (((next_random & 0xFFFF) / (real)65536) - 0.5) / emb_size;
         }
     }
 
     // 构建huffman 树
     
+    
+}
+
+// 高频词的采样，词频越高，被舍弃的概率越大
+int word_sample(real cn) {
+    int flag = 1;
+    real word_pro = (sqrt(cn / (sample * tw)) + 1) * (sample * tw) / cn;
+    unsigned long long next_random = next_random * (unsigned long long)25214903917 + 11;
+
+    if (word_pro < (next_random & 0xFFFF) / (real)65536) {
+        flag = -1;
+    }
+    return flag;
+}
+
+
+std::vector<std::vector<int>> get_sentence(std::string& train_file) {
+    std::ifstream f_r;
+    f_r.open(train_file);
+    std::string temp_line;
+
+    std::vector<std::vector<int>> sentences;
+    while (getline(f_r, temp_line)) {
+
+        std::vector<std::string> tokens;
+        split(temp_line, tokens);
+        std::vector<int> sentence;
+        for (auto& token : tokens) {
+            int cn = vocab_map[token];
+            int flag = word_sample(cn);
+            int token_index = word2index[token];
+
+            if (flag > 0) {
+                sentence.push_back(token_index);
+            }
+
+        }
+        if (sentence.size() < 1) {
+            continue;
+        }
+        sentences.push_back(sentence);
+    }
+
+    for (auto& sentence : sentences) {
+        for (auto& token : sentence) {
+            std::cout << token << "-";
+        }
+        std::cout << std::endl;
+    }
+
+    return sentences;
 }
 
 
 // 训练
-void train(std::string& train_file) {
+void run(std::string& train_file) {
 
     read_file(train_file);
     init_net();
+
+    std::vector<std::vector<int>> sentence = get_sentence(train_file);
+    
+
+    // cbow();
 
 
 }
@@ -154,7 +220,7 @@ int main(int argc, char *argv[]) {
     std::vector<real> exp_table(EXP_TABLE_SIZE);
     pre_calcate_sigmoid(exp_table);
 
-    train(train_file);
+    run(train_file);
 
 
     return 1;
