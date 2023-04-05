@@ -1,7 +1,7 @@
 /*
  * @Author: huangqianfei
  * @Date: 2023-03-25 12:37:18
- * @LastEditTime: 2023-03-26 20:29:56
+ * @LastEditTime: 2023-03-26 21:00:57
  * @Description: word2vec 的cpp实现
  * 参考博客：https://blog.csdn.net/So_that/article/details/103146219?spm=1001.2014.3001.5502
  */
@@ -36,7 +36,7 @@ std::string OUTPUT_FILE = "./output_file.txt";
 int binary = 0, cbow = 1, debug_mode = 2, window = 5, min_count = 2, num_threads = 12, min_reduce = 1, hs = 0, negative = 5;
 long long vocab_max_size = 1000, emb_size = 100, iter = 5, classes = 0;
 real alpha = 0.025, starting_alpha, sample = 1e-3, tw = 0;
-clock_t start;
+unsigned long long next_random = 1;
 const int table_size = 1e8;
 
 std::vector<real> word_emb;
@@ -73,6 +73,7 @@ void pre_calcate_sigmoid(std::vector<real>& exp_table) {
 
 }
 
+
 // 字符串切割
 void split(const std::string s, std::vector<std::string>& tokens, const std::string& delimiters = " ") {
     int lastPos = s.find_first_not_of(delimiters);
@@ -83,8 +84,6 @@ void split(const std::string s, std::vector<std::string>& tokens, const std::str
         pos = s.find_first_of(delimiters, lastPos);
     }
 }
-
-
 
 
 void read_file(std::string& train_file) {
@@ -127,21 +126,22 @@ void init_net() {
     //初始化word_emb数组（也就是词向量） 并不是0，范围是[-0.5/m,0.5/m],其中m词向量的维度。
     for (int i = 0; i < vocab_size; ++i) {
         for (int j = 0; j < emb_size; j++) {
-            unsigned long long next_random = next_random * (unsigned long long)25214903917 + 11;
+            next_random = next_random * (unsigned long long)25214903917 + 11;
             word_emb[i * emb_size + j] = (((next_random & 0xFFFF) / (real)65536) - 0.5) / emb_size;
         }
     }
 
     // 构建huffman 树
-    
-    
 }
+
 
 // 高频词的采样，词频越高，被舍弃的概率越大
 int word_sample(real cn) {
     int flag = 1;
     real word_pro = (sqrt(cn / (sample * tw)) + 1) * (sample * tw) / cn;
-    unsigned long long next_random = next_random * (unsigned long long)25214903917 + 11;
+    next_random = next_random * (unsigned long long)25214903917 + 11;
+
+    // std::cout << word_pro << "---" << (next_random & 0xFFFF) / (real)65536 << std::endl;
 
     if (word_pro < (next_random & 0xFFFF) / (real)65536) {
         flag = -1;
@@ -177,13 +177,6 @@ std::vector<std::vector<int>> get_sentence(std::string& train_file) {
         sentences.push_back(sentence);
     }
 
-    for (auto& sentence : sentences) {
-        for (auto& token : sentence) {
-            std::cout << token << "-";
-        }
-        std::cout << std::endl;
-    }
-
     return sentences;
 }
 
@@ -198,7 +191,6 @@ void run(std::string& train_file) {
     
 
     // cbow();
-
 
 }
 
