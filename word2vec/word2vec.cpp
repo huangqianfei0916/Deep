@@ -1,7 +1,7 @@
 /*
  * @Author: huangqianfei
  * @Date: 2023-03-25 12:37:18
- * @LastEditTime: 2023-03-26 21:00:57
+ * @LastEditTime: 2023-04-13 20:25:36
  * @Description: word2vec 的cpp实现
  * 参考博客：https://blog.csdn.net/So_that/article/details/103146219?spm=1001.2014.3001.5502
  */
@@ -22,13 +22,6 @@
 
 const int vocab_hash_size = 30000000; // Maximum 30 * 0.7 = 21M words in the vocabulary
 typedef float real;
-
-struct vocab_word
-{
-    long long cn;
-    int *point;
-    char *word, *code, codelen;
-};
 
 
 std::string OUTPUT_FILE = "./output_file.txt";
@@ -86,6 +79,7 @@ void split(const std::string s, std::vector<std::string>& tokens, const std::str
 }
 
 
+// 去除低频词，构建word2index
 void read_file(std::string& train_file) {
     std::ifstream f_r;
     f_r.open(train_file);
@@ -106,6 +100,7 @@ void read_file(std::string& train_file) {
         word2index[key] = index++;
         tw += value;
     }
+
 }
 
 
@@ -114,7 +109,7 @@ void init_net() {
     int vocab_size = vocab_map.size();
 
     if (hs) {
-        // 才有hs优化算法时，初始化syn1
+        // hs优化算法时，初始化syn1
         syn1.resize(vocab_size * emb_size);
     }
 
@@ -187,11 +182,22 @@ void run(std::string& train_file) {
     read_file(train_file);
     init_net();
 
-    std::vector<std::vector<int>> sentence = get_sentence(train_file);
+    std::vector<std::vector<int>> sentences = get_sentence(train_file);
+    for (auto& item_list : sentences) {
+        for (auto& item : item_list) {
+            std::cout << item << " ";
+        }
+        std::cout << std::endl;
+    }
     
+    if (cbow == 1) {
+        // cbow;
 
-    // cbow();
+    } else {
+        // skip gram
 
+    }
+    
 }
 
 
