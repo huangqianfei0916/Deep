@@ -1,3 +1,4 @@
+// useage: ./sample -i query.txt -o output
 
 #include <iostream>
 #include <vector>
