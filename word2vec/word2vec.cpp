@@ -1,7 +1,7 @@
 /*
  * @Author: huangqianfei
  * @Date: 2023-03-25 12:37:18
- * @LastEditTime: 2023-04-13 20:25:36
+ * @LastEditTime: 2023-04-16 18:48:59
  * @Description: word2vec 的cpp实现
  * 参考博客：https://blog.csdn.net/So_that/article/details/103146219?spm=1001.2014.3001.5502
  */
@@ -13,6 +13,9 @@
 #include <fstream>
 
 #include <cmath>
+
+#include "cbow.cpp"
+#include "skip_gram.cpp"
 
 #define MAX_STRING 100
 #define EXP_TABLE_SIZE 1000
@@ -181,17 +184,18 @@ void run(std::string& train_file) {
 
     read_file(train_file);
     init_net();
-
     std::vector<std::vector<int>> sentences = get_sentence(train_file);
-    for (auto& item_list : sentences) {
-        for (auto& item : item_list) {
-            std::cout << item << " ";
-        }
-        std::cout << std::endl;
-    }
+    
+    // for (auto& item_list : sentences) {
+    //     for (auto& item : item_list) {
+    //         std::cout << item << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
     
     if (cbow == 1) {
         // cbow;
+        run_cbow(word_emb, window, sentences);
 
     } else {
         // skip gram
