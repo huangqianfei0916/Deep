@@ -29,4 +29,4 @@ xxx.fasta
 ```
 
 ******************************
-![Text-CNN](https://github.com/huangqianfei0916/Text_CNN/blob/master/1.png)
+![Text-CNN](https://github.com/huangqianfei0916/learn_nlp/tree/master/text_cnn/blob/master/1.png)
