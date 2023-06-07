@@ -3,7 +3,7 @@ Descripttion:
 version: 
 Author: huangqianfei
 Date: 2022-06-18 10:02:33
-LastEditTime: 2022-09-04 19:59:53
+LastEditTime: 2023-06-07 22:01:24
 '''
 from select import select
 import numpy as np
@@ -240,7 +240,7 @@ if __name__ == '__main__':
     X_code = pq.encode(X)
 
     # Results: create a distance table online, and compute Asymmetric Distance to each PQ-code
-    # 【128】-》【8*16】 和【8，256，16】求norm-》【8，256】
+    # 【128】->【8*16】 和【8，256，16】求norm->【8，256】
     # 这里的X_code 是候选集，大小是 1w * 8，很明显这里1w * 8 都是means的编号
     # 而query计算split成 8 * 16 之后，需要先计算和聚类中心的距离（这也是主要计算量），得到【8 * 256】的距离矩阵
     # 将候选集合的1w * 8的编号通过查表（【8 * 256】的距离矩阵）得到1w * 8的距离向量，将8列进行sum得到query距离1w样本的距离，取topk

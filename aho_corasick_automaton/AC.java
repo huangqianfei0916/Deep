@@ -34,22 +34,22 @@ public class AC {
         target_pattern = pattern;
         buildTrieTree(pattern);
         System.out.println("trie tree build finish......");
-//        checkTrieTree();
+        // checkTrieTree();
         buildFail();
         System.out.println("fail point build finish......");
     }
 
     public void buildFail(){
-//        因为构建fail指针以来节点的父节点和父节点的fail节点，这里采用bfs构建
+        // 因为构建fail指针以来节点的父节点和父节点的fail节点，这里采用bfs构建
         LinkedList<ACNode> queue = new LinkedList<>();
-//        先将root的孩子节点加入队列，同时root的孩子节点的fail全部指向root节点
+        // 先将root的孩子节点加入队列，同时root的孩子节点的fail全部指向root节点
         for (Map.Entry<Character, ACNode> entry : root.children.entrySet()) {
             entry.getValue().fail = root;
             queue.add(entry.getValue());
         }
 
         while(!queue.isEmpty()){
-//            temp为父节点，tempNode是孩子节点
+            // temp为父节点，tempNode是孩子节点
             ACNode temp = queue.poll();
             for (Map.Entry<Character, ACNode> entry : temp.children.entrySet()) {
                 ACNode tempNode = entry.getValue();

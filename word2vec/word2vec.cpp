@@ -1,7 +1,7 @@
 /*
  * @Author: huangqianfei
  * @Date: 2023-03-25 12:37:18
- * @LastEditTime: 2023-04-16 18:48:59
+ * @LastEditTime: 2023-06-07 22:19:29
  * @Description: word2vec 的cpp实现
  * 参考博客：https://blog.csdn.net/So_that/article/details/103146219?spm=1001.2014.3001.5502
  */
@@ -208,12 +208,12 @@ void run(std::string& train_file) {
 
 int main(int argc, char *argv[]) {
 
-    // if (argc == 1) {
-    //     std::cout << "word2vec cpp useage" << std::endl;
-    //     std::cout << "wait" << std::endl;
-    //     std::cout << "-------------------" << std::endl;
-    //     return 0;
-    // }
+    if (argc == 1) {
+        std::cout << "word2vec cpp useage" << std::endl;
+        std::cout << "wait" << std::endl;
+        std::cout << "-------------------" << std::endl;
+        return 0;
+    }
 
     int index = 0;
     index = args_parse("-train", argc, argv);
