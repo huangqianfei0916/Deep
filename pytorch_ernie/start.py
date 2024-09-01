@@ -155,14 +155,19 @@ class FXBTask:
         out_labels1 = labels1.detach().numpy()
         out_labels2 = labels2.detach().numpy()
   
-        (logits1, logits2) = model(input_ids=input_ids)
+        logits1, logits2 = model(input_ids=input_ids)
 
         preds1 = np.argmax(logits1.detach().numpy(), axis=1).reshape([len(logits1), 1])
         preds2 = np.argmax(logits2.detach().numpy(), axis=1).reshape([len(logits2), 1])
-        p, r, f, _ = metrics.precision_recall_fscore_support(out_labels1, preds1)
-        logger.info(f"valid p:{p} r:{r} f:{f}")
-        p, r, f, _ = metrics.precision_recall_fscore_support(out_labels2, preds2)
-        logger.info(f"valid p:{p} r:{r} f:{f}")
+        acc = metrics.accuracy_score(out_labels1, preds1)   
+        report = metrics.classification_report(out_labels1, preds1)
+        print(report)
+        logger.info(f"valid acc:{acc}")
+
+        acc = metrics.accuracy_score(out_labels2, preds2)   
+        report = metrics.classification_report(out_labels2, preds2)
+        print(report)
+        logger.info(f"valid acc:{acc}")
         model.train()
 
 
