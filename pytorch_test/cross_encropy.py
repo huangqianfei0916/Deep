@@ -6,7 +6,7 @@ Description:
 '''
 import torch
 import torch.nn as nn
---------------------soft label-------------------------
+# --------------------soft label-------------------------
 loss = nn.CrossEntropyLoss()
 input = torch.randn(3, 5, requires_grad=True)
 target = torch.randn(3, 5).softmax(dim=1)
@@ -26,7 +26,7 @@ output = loss(input, target)
 output.backward()
 print(output)
 # tensor(2.5833, grad_fn=<DivBackward1>)
---------------------hard label-------------------------
+# --------------------hard label-------------------------
 y = torch.empty(3, dtype=torch.long).random_(5)
 loss_func = nn.NLLLoss()
 res1 = loss_func(x_log, y)

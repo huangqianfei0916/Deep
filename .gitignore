@@ -3,3 +3,7 @@
 build
 data
 test
+__pycache__
+*checkpoint*
+*.log
+*log*
