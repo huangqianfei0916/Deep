@@ -20,7 +20,7 @@ CUR_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class Reader():
- 
+
 
     def __init__(self, train_path = "", max_token = 64, shuffle=False, tokenizer=None):
 
@@ -91,8 +91,8 @@ class Reader():
         
         input_ids = srcs.input_ids
         
-        labels1 = torch.Tensor(np.array(labels1))
-        labels2 = torch.Tensor(np.array(labels2))
+        labels1 = torch.LongTensor(np.array(labels1))
+        labels2 = torch.LongTensor(np.array(labels2))
         
         return input_ids, labels1, labels2
 
