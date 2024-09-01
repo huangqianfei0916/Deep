@@ -13,14 +13,13 @@ sys.path.append(CUR_DIR + "/../")
 import torch
 import time
 import numpy as np
-import gensim
 import argparse
 import torch.nn as nn
 
-from torchsummary import summary
+# from torchsummary import summary
 from torch.utils.data import DataLoader
 from datetime import datetime
-from data.dna_reader import Reader
+from data_reader.dna_reader import Reader
 from transformer.Models import Transformer
 from transformer import Constants
 from transformer.Optim import ScheduledOptim

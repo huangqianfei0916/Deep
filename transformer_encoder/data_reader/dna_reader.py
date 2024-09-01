@@ -11,7 +11,6 @@ CUR_DIR = os.path.abspath(os.path.dirname(__file__))
 sys.path.append(CUR_DIR + "/../")
 
 import torch
-import gensim
 import subprocess
 import collections
 
