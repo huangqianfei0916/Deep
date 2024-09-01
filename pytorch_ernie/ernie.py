@@ -16,7 +16,7 @@ class ClassificationHead(nn.Module):
     Perform sentence-level classification tasks.
     """
 
-    def __init__(self, input_dim: int, inner_dim: int, num_classes: int, pooler_dropout: float):
+    def __init__(self, input_dim, inner_dim, num_classes, pooler_dropout):
         super().__init__()
         self.dense = nn.Linear(input_dim, inner_dim)
         self.dropout = nn.Dropout(p=pooler_dropout)
@@ -32,52 +32,47 @@ class ClassificationHead(nn.Module):
         return hidden_states
 
 
-class ErnieEncode(ErnieModel):
+class ErnieEncode(nn.Module):
 
     def __init__(
         self,
         ernie,
-        config,
         num_classes1,
         num_classes2,
-        num_token_classes=2,
         dropout=0.1,
     ):
-        super(ErnieModel, self).__init__(config)
+        super(ErnieEncode, self).__init__()
         self.num_classes1 = num_classes1
         self.num_classes2 = num_classes2
-        self.num_token_classes = num_token_classes
         self.ernie = ernie
         self.dropout = nn.Dropout(
-            dropout if dropout is not None else self.ernie["hidden_dropout_prob"]
+            dropout if dropout is not None else self.ernie.config.hidden_dropout_prob
         )
-        # print(self.ernie["hidden_size"])
+        # print(self.ernie.config.hidden_size)
         self.seq_classifier1 = ClassificationHead(
-            self.ernie["hidden_size"],
-            self.ernie["hidden_size"],
+            self.ernie.config.hidden_size,
+            self.ernie.config.hidden_size,
             num_classes1,
             dropout,
         )
         self.seq_classifier2 = ClassificationHead(
-            self.ernie.config["hidden_size"],
-            self.ernie.config["hidden_size"],
+            self.ernie.config.hidden_size,
+            self.ernie.config.hidden_size,
             num_classes2,
             dropout,
-        )
-        self.token_classifier = nn.Linear(
-            self.ernie.config["hidden_size"], num_token_classes
         )
 
     def forward(self, input_ids, token_type_ids=None, position_ids=None, attention_mask=None):
 
-        sequence_output, pooled_output = self.ernie(
+        outputs = self.ernie(
             input_ids,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
             attention_mask=attention_mask,
         )
-        first_token_tensor = sequence_output[:, 0]
-        second_token_tensor = sequence_output[:, 1]
+
+        first_token_tensor = outputs[0][:, 0]
+        second_token_tensor = outputs[0][:, 1]
 
         logits1 = self.seq_classifier1(first_token_tensor)
         logits2 = self.seq_classifier2(second_token_tensor)
