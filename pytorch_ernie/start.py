@@ -58,10 +58,9 @@ class FXBTask:
         total_loss = loss1 + loss2
         return total_loss, loss1, loss2
 
-    def train(self, train_path, n_epoch=5, max_length=64, batch_size=128, learning_rate=3e-5):        
-        self.model.train()
+    def train(self, train_path, n_epoch=5, max_length=32, batch_size=128, learning_rate=3e-5):        
+        self.multi_task_model.train()
 
- 
         data_set = Reader(
             train_path,
             tokenizer=self.tokenizer,
@@ -81,7 +80,7 @@ class FXBTask:
 
         optimizer = torch.optim.AdamW(
             lr=learning_rate,
-            params=self.model.parameters(),
+            params=self.multi_task_model.parameters(),
             weight_decay=0.01,
         )
 
@@ -106,8 +105,8 @@ class FXBTask:
                 batch_size=32,
             )
             for i, batch in enumerate(dataloader):
-                # if step % 100 == 0:
-                #     self.valid(batch)
+                if step % 10 == 0:
+                    self.valid(batch)
 
                 losses = self.train_batch(self.multi_task_model, batch, criterion)
                 total_loss, loss1, loss2 = losses
