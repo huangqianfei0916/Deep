@@ -4,9 +4,10 @@ Author: huangqianfei@tju.edu.cn
 Date: 2024-08-31 22:28:59
 Description: 
 """
-from tqdm import tqdm
+import os
 from pathlib import Path
 from datetime import datetime  
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -14,7 +15,7 @@ import numpy as np
 from sklearn import metrics
 from transformers import BertTokenizer, ErnieModel
 from torch.utils.data import DataLoader
-
+from torch.utils.tensorboard import SummaryWriter  
 
 from ernie import ErnieEncode
 from data_tools import Reader
@@ -22,9 +23,11 @@ from utils import logger
 from utils import LinearWarmupCosineAnnealingLR
 
 gpu = torch.cuda.is_available()
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("GPU available: ", gpu)
 print("CuDNN: ", torch.backends.cudnn.enabled)
-print('GPUs：', torch.cuda.device_count())
+print("GPUs: ", torch.cuda.device_count())
+print("device: ", device)
 
 class FXBTask:
 
@@ -48,7 +51,10 @@ class FXBTask:
 
 
     def train_batch(self, model, batch, criterion):
-        (input_ids, labels1, labels2) = batch
+        input_ids, labels1, labels2 = batch
+        input_ids = input_ids.to(device)
+        labels1 = labels1.to(device)
+        labels2 = labels2.to(device)
         (logits1, logits2) = model(input_ids=input_ids)
 
 
@@ -60,6 +66,7 @@ class FXBTask:
 
     def train(self, train_path, n_epoch=5, max_length=32, batch_size=128, learning_rate=3e-5):        
         self.multi_task_model.train()
+        self.multi_task_model.to(device)
 
         data_set = Reader(
             train_path,
@@ -73,6 +80,7 @@ class FXBTask:
             shuffle=True,
             batch_size=32,
         )
+        swriter = SummaryWriter(os.path.join(self.save_dir, 'log'))
         
 
         training_steps = len(dataloader) * n_epoch
@@ -105,11 +113,16 @@ class FXBTask:
                 batch_size=32,
             )
             for i, batch in enumerate(dataloader):
-                if step % 10 == 0:
+                if step % 50 == 0:
                     self.valid(batch)
 
                 losses = self.train_batch(self.multi_task_model, batch, criterion)
                 total_loss, loss1, loss2 = losses
+                swriter.add_scalar('loss', total_loss.cpu().detach().numpy(), step)
+                swriter.add_scalar('loss1', loss1.cpu().detach().numpy(), step)
+                swriter.add_scalar('loss2', loss1.cpu().detach().numpy(), step)
+                swriter.add_scalar('lr', np.array(lr_scheduler.get_lr()), step)
+
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
@@ -117,7 +130,7 @@ class FXBTask:
 
                 (total_loss, loss1, loss2) = (x.item() for x in losses)
 
-                line = f" total_loss:{total_loss:.3f} loss1:{loss1} loss2:{loss2}  "
+                line = f" lr:{lr_scheduler.get_lr()} total_loss:{total_loss:.3f} loss1:{loss1} loss2:{loss2}  "
                 progress_bar.update(1)
                 progress_bar.set_description(line)
                 step += 1
@@ -134,13 +147,15 @@ class FXBTask:
 
         self.save(self.multi_task_model, self.tokenizer, name=f"/epoch-{epoch}")
         logger.info("trained")
+        swriter.close()
 
     def save(self, model, tokenizer, name):
         try:
             saved_dir = self.save_dir + name
             Path(saved_dir).mkdir(parents=True, exist_ok=True)
             tokenizer.save_pretrained(saved_dir)
-            model.save_model_config(saved_dir)
+            # model.save_model_config(saved_dir)
+            torch.save(model.state_dict(), saved_dir + "/model.pt")
             model.save_pretrained(saved_dir)
             logger.info(f" name:{name} saved -> {saved_dir}")
 
@@ -150,15 +165,18 @@ class FXBTask:
     def valid(self, batch):
         """valid"""
         (input_ids, labels1, labels2) = batch
+        input_ids = input_ids.to(device)
+        labels1 = labels1.to(device)
+        labels2 = labels2.to(device)
         model = self.multi_task_model
         model.eval()
-        out_labels1 = labels1.detach().numpy()
-        out_labels2 = labels2.detach().numpy()
+        out_labels1 = labels1.cpu().detach().numpy()
+        out_labels2 = labels2.cpu().detach().numpy()
   
         logits1, logits2 = model(input_ids=input_ids)
 
-        preds1 = np.argmax(logits1.detach().numpy(), axis=1).reshape([len(logits1), 1])
-        preds2 = np.argmax(logits2.detach().numpy(), axis=1).reshape([len(logits2), 1])
+        preds1 = np.argmax(logits1.cpu().detach().numpy(), axis=1).reshape([len(logits1), 1])
+        preds2 = np.argmax(logits2.cpu().detach().numpy(), axis=1).reshape([len(logits2), 1])
         acc = metrics.accuracy_score(out_labels1, preds1)   
         report = metrics.classification_report(out_labels1, preds1)
         print(report)
