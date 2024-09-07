@@ -73,7 +73,7 @@ class Reader():
             if len(item) >= 3 and item[1] in self.label1_index and item[2] in self.label2_index:
                 data.append(item)
             else:
-                data.append([item[0], "找律师律所", "办事指南"])
+                data.append([item[0], self.label1[0], self.label2[0]])
     
         return data
 
