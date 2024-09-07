@@ -37,7 +37,6 @@ class FXBTask:
         Path(save_dir).mkdir(parents=True, exist_ok=True)
 
         self.tokenizer = BertTokenizer.from_pretrained(model_path)
-
         self.model = ErnieModel.from_pretrained(
             model_path
         )
@@ -50,23 +49,21 @@ class FXBTask:
         logger.info(f" tokenizer, model loaded from {model_path} ok")
 
 
-    def train_batch(self, model, batch, criterion):
-        input_ids, labels1, labels2 = batch
-        input_ids = input_ids.to(device)
-        labels1 = labels1.to(device)
-        labels2 = labels2.to(device)
-        (logits1, logits2) = model(input_ids=input_ids)
+    def train_batch(self, model, batch, criterion1, criterion2):
+        input_ids, labels1, labels2, attention_mask = batch
+        input_ids, labels1, labels2 = input_ids.to(device), labels1.to(device), labels2.to(device)
+        attention_mask = attention_mask.to(device)
+        
+        logits1, logits2 = model(input_ids=input_ids, attention_mask=attention_mask)
 
-
-        loss1 = criterion(logits1, labels1)
-        loss2 = criterion(logits2, labels2)
+        loss1 = criterion1(logits1, labels1)
+        loss2 = criterion2(logits2, labels2)
 
         total_loss = loss1 + loss2
         return total_loss, loss1, loss2
 
     def train(self, train_path, n_epoch=5, max_length=32, batch_size=128, learning_rate=3e-5):        
         self.multi_task_model.train()
-        self.multi_task_model.to(device)
 
         data_set = Reader(
             train_path,
@@ -78,13 +75,13 @@ class FXBTask:
             data_set,
             collate_fn=data_set.collate_fn,
             shuffle=True,
-            batch_size=32,
+            batch_size=64,
         )
         swriter = SummaryWriter(os.path.join(self.save_dir, 'log'))
         
 
         training_steps = len(dataloader) * n_epoch
-        print("print(training_steps)", training_steps)
+        print("training_steps:", training_steps)
 
         optimizer = torch.optim.AdamW(
             lr=learning_rate,
@@ -93,11 +90,12 @@ class FXBTask:
         )
 
         lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer, warmup_epochs=1, total_epochs=n_epoch, cycles=0.5)  
-        criterion = nn.CrossEntropyLoss()  
-
+        criterion1 = nn.CrossEntropyLoss()  
+        criterion2 = nn.BCELoss()
 
         step = 0
         progress_bar = tqdm(range(training_steps))
+        self.multi_task_model.to(device)
         for epoch in range(n_epoch):
 
             data_set = Reader(
@@ -110,17 +108,17 @@ class FXBTask:
                 data_set,
                 collate_fn=data_set.collate_fn,
                 shuffle=True,
-                batch_size=32,
+                batch_size=64,
             )
             for i, batch in enumerate(dataloader):
                 if step % 50 == 0:
                     self.valid(batch)
 
-                losses = self.train_batch(self.multi_task_model, batch, criterion)
+                losses = self.train_batch(self.multi_task_model, batch, criterion1, criterion2)
                 total_loss, loss1, loss2 = losses
                 swriter.add_scalar('loss', total_loss.cpu().detach().numpy(), step)
                 swriter.add_scalar('loss1', loss1.cpu().detach().numpy(), step)
-                swriter.add_scalar('loss2', loss1.cpu().detach().numpy(), step)
+                swriter.add_scalar('loss2', loss2.cpu().detach().numpy(), step)
                 swriter.add_scalar('lr', np.array(lr_scheduler.get_lr()), step)
 
                 optimizer.zero_grad()
@@ -143,51 +141,56 @@ class FXBTask:
             self.save(self.multi_task_model, self.tokenizer, name=f"/epoch-{epoch}")
             line = f"epoch:{epoch} step:{step} " + line
             logger.info(line)
+            swriter.close()
 
 
         self.save(self.multi_task_model, self.tokenizer, name=f"/epoch-{epoch}")
         logger.info("trained")
-        swriter.close()
 
     def save(self, model, tokenizer, name):
         try:
             saved_dir = self.save_dir + name
-            Path(saved_dir).mkdir(parents=True, exist_ok=True)
-            tokenizer.save_pretrained(saved_dir)
-            # model.save_model_config(saved_dir)
-            torch.save(model.state_dict(), saved_dir + "/model.pt")
-            model.save_pretrained(saved_dir)
-            logger.info(f" name:{name} saved -> {saved_dir}")
+            
+            state_path = saved_dir + "/state"
+            Path(state_path).mkdir(parents=True, exist_ok=True)
+            tokenizer.save_pretrained(state_path)
+            torch.save(model.state_dict(), state_path + "/model_state.pt")
+            torch.save(model, state_path + "/model_all.pt")
+            logger.info(f" name:{name} saved -> {state_path}")
+
+            
+            # jit_path = saved_dir + "/jit"
+            # Path(jit_path).mkdir(parents=True, exist_ok=True)
+            # scripted_module = torch.jit.script(model)  
+            # torch.jit.save(scripted_module, jit_path + "/scripted_model.pt")
 
         except Exception as e:
             logger.error((e))
 
     def valid(self, batch):
         """valid"""
-        (input_ids, labels1, labels2) = batch
+        input_ids, labels1, labels2, attention_mask = batch
         input_ids = input_ids.to(device)
-        labels1 = labels1.to(device)
-        labels2 = labels2.to(device)
+        attention_mask = attention_mask.to(device)
+
         model = self.multi_task_model
         model.eval()
-        out_labels1 = labels1.cpu().detach().numpy()
-        out_labels2 = labels2.cpu().detach().numpy()
-  
-        logits1, logits2 = model(input_ids=input_ids)
-
+        logits1, logits2 = model(input_ids=input_ids, attention_mask=attention_mask)
+        
         preds1 = np.argmax(logits1.cpu().detach().numpy(), axis=1).reshape([len(logits1), 1])
-        preds2 = np.argmax(logits2.cpu().detach().numpy(), axis=1).reshape([len(logits2), 1])
-        acc = metrics.accuracy_score(out_labels1, preds1)   
-        report = metrics.classification_report(out_labels1, preds1)
+        acc = metrics.accuracy_score(labels1, preds1)   
+        report = metrics.classification_report(labels1, preds1)
         print(report)
-        logger.info(f"valid acc:{acc}")
+        logger.info(f"task1 valid acc:{acc}")
 
-        acc = metrics.accuracy_score(out_labels2, preds2)   
-        report = metrics.classification_report(out_labels2, preds2)
+        logits2 = logits2.cpu().detach().numpy()
+        logits2 = (logits2 > 0.5).astype(int)  
+
+        acc = metrics.accuracy_score(labels2, logits2)   
+        report = metrics.classification_report(labels2, logits2)
         print(report)
-        logger.info(f"valid acc:{acc}")
+        logger.info(f"task2 valid acc:{acc}")
         model.train()
-
 
 if __name__ == "__main__":
 

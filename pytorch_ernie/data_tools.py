@@ -41,17 +41,26 @@ class Reader():
 
     def __getitem__(self, index):
         if not self.deque:
-            docs = self.reader.read(1024 * 1024 * 5).splitlines()
+            docs = self.reader.read(1024 * 1024 * 1).splitlines()
             docs = self.parse_data(docs)
             self.deque.extend(docs)
         
         item = self.deque.popleft()
-        doc, label1, label2 = item
+        doc = item[0]
+        label1 = item[1]
+        label2_list = item[2:]
         doc = "fxbnlu" + doc
 
         label1_index = self.label1_index[label1]
-        label2_index = self.label2_index[label2]
-        return doc, label1_index, label2_index
+        # label2_index = self.label2_index[label2]
+        label2_flag = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+        for label2 in label2_list:
+            if label2 in self.label2_index:
+                index_flag = self.label2_index[label2]
+                label2_flag[index_flag] = 1
+        
+        return doc, label1_index, label2_flag
 
     def parse_data(self, docs):
         """get data index"""
@@ -63,6 +72,8 @@ class Reader():
         for item in docs:
             if len(item) >= 3 and item[1] in self.label1_index and item[2] in self.label2_index:
                 data.append(item)
+            else:
+                data.append([item[0], "找律师律所", "办事指南"])
     
         return data
 
@@ -70,7 +81,6 @@ class Reader():
     def __len__(self):
         return self._lines
 
-    
     def collate_fn(self, batch):
         """pad batch"""
         doc_list = [item[0] for item in batch]
@@ -87,14 +97,16 @@ class Reader():
             max_length=max_len,
             add_special_tokens=True,
             return_tensors="pt",
+            return_attention_mask=True,
         )
         
         input_ids = srcs.input_ids
+        attention_mask = srcs.attention_mask
         
-        labels1 = torch.LongTensor(np.array(labels1))
-        labels2 = torch.LongTensor(np.array(labels2))
-        
-        return input_ids, labels1, labels2
+        labels1 = torch.from_numpy(np.array(labels1))
+        labels2 = torch.from_numpy(np.array(labels2)).float()
+
+        return input_ids, labels1, labels2, attention_mask
 
 
 
@@ -126,7 +138,7 @@ if __name__ == "__main__":
 
     for step, batch in enumerate(dataloader):
 
-        input_ids, labels1, labels2 = batch
+        input_ids, labels1, labels2, attention_mask = batch
         shape = input_ids.shape
  
         for i in range(3):

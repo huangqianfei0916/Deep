@@ -48,7 +48,7 @@ class ErnieEncode(nn.Module):
         self.dropout = nn.Dropout(
             dropout if dropout is not None else self.ernie.config.hidden_dropout_prob
         )
-        # print(self.ernie.config.hidden_size)
+
         self.seq_classifier1 = ClassificationHead(
             self.ernie.config.hidden_size,
             self.ernie.config.hidden_size,
@@ -61,6 +61,7 @@ class ErnieEncode(nn.Module):
             num_classes2,
             dropout,
         )
+        self.seq_classifier2_sigmoid = nn.Sigmoid()
 
     def forward(self, input_ids, token_type_ids=None, position_ids=None, attention_mask=None):
 
@@ -76,4 +77,5 @@ class ErnieEncode(nn.Module):
 
         logits1 = self.seq_classifier1(first_token_tensor)
         logits2 = self.seq_classifier2(second_token_tensor)
+        logits2 = self.seq_classifier2_sigmoid(logits2)
         return logits1, logits2

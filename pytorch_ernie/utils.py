@@ -15,7 +15,7 @@ def spider_log():
     logger.setLevel(logging.DEBUG)
 
     # 创建一个handler，用于写log日志
-    file_handler = logging.FileHandler('ernie_task.log')
+    file_handler = logging.FileHandler('log/ernie_task.log')
     file_handler.setLevel(logging.INFO)
 
     # 创建一个handler，用于输出到控制台
