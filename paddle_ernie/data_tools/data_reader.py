@@ -19,8 +19,9 @@ CUR_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class Reader():
-    label1 = []
-    label2 = []
+    label1 = ['class11', 'class12']
+    label2 = ['class21', 'class22', 'class23']
+
 
     def __init__(self, train_path = "", max_token = 64, shuffle=False, tokenizer=None):
 

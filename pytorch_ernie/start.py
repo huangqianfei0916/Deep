@@ -124,7 +124,6 @@ class FXBTask:
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
-                lr_scheduler.step()
 
                 (total_loss, loss1, loss2) = (x.item() for x in losses)
 
@@ -140,6 +139,7 @@ class FXBTask:
 
             self.save(self.multi_task_model, self.tokenizer, name=f"/epoch-{epoch}")
             line = f"epoch:{epoch} step:{step} " + line
+            lr_scheduler.step()
             logger.info(line)
             swriter.close()
 
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     )
     task.train(
         train_path="/Users/huangqianfei/workspace/learn_nlp/pytorch_ernie/data/train_data.txt",
-        n_epoch=5,
+        n_epoch=10,
         max_length=32,
         batch_size=64,
     )
