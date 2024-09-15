@@ -89,7 +89,12 @@ class FXBTask:
             weight_decay=0.01,
         )
 
-        lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer, warmup_epochs=1, total_epochs=n_epoch, cycles=0.5)  
+        lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer,
+                                                     warmup_steps=training_steps * 0.003,
+                                                     total_steps=training_steps,
+                                                     initial_lr=learning_rate,
+                                                     cycles=3,
+                                                     verbose=False)  
         criterion1 = nn.CrossEntropyLoss()  
         criterion2 = nn.BCELoss()
 
@@ -124,6 +129,7 @@ class FXBTask:
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
+                lr_scheduler.step()
 
                 (total_loss, loss1, loss2) = (x.item() for x in losses)
 
@@ -139,7 +145,6 @@ class FXBTask:
 
             self.save(self.multi_task_model, self.tokenizer, name=f"/epoch-{epoch}")
             line = f"epoch:{epoch} step:{step} " + line
-            lr_scheduler.step()
             logger.info(line)
             swriter.close()
 
@@ -179,16 +184,14 @@ class FXBTask:
         
         preds1 = np.argmax(logits1.cpu().detach().numpy(), axis=1).reshape([len(logits1), 1])
         acc = metrics.accuracy_score(labels1, preds1)   
-        report = metrics.classification_report(labels1, preds1)
-        print(report)
+        # report = metrics.classification_report(labels1, preds1)
+        # print(report)
         logger.info(f"task1 valid acc:{acc}")
 
         logits2 = logits2.cpu().detach().numpy()
         logits2 = (logits2 > 0.5).astype(int)  
 
         acc = metrics.accuracy_score(labels2, logits2)   
-        report = metrics.classification_report(labels2, logits2)
-        print(report)
         logger.info(f"task2 valid acc:{acc}")
         model.train()
 

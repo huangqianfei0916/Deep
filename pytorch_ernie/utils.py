@@ -1,7 +1,7 @@
 """
 Copyright (c) 2024 by huangqianfei@tju.edu.cn All Rights Reserved. 
 Author: huangqianfei@tju.edu.cn
-Date: 2024-09-01 09:02:35
+Date: 2024-09-01 11:56:16
 Description: 
 """
 import logging
@@ -35,22 +35,32 @@ def spider_log():
 
 logger = spider_log()
 
-
+    
 class LinearWarmupCosineAnnealingLR(_LRScheduler):  
-    def __init__(self, optimizer, warmup_epochs, total_epochs, cycles, last_epoch=-1):  
-        self.warmup_epochs = warmup_epochs  
-        self.total_epochs = total_epochs  
-        self.cycles = cycles  
-        super(LinearWarmupCosineAnnealingLR, self).__init__(optimizer, last_epoch)  
-  
-    def get_lr(self):  
-        if self.last_epoch < self.warmup_epochs:  
-            # 线性warmup  
-            return [base_lr * (float(self.last_epoch + 1) / self.warmup_epochs) for base_lr in self.base_lrs]  
-        else:  
-            # 余弦退火  
-            completed_cycles = self.last_epoch // (self.total_epochs - self.warmup_epochs)  
-            progress_within_cycle = (self.last_epoch - self.warmup_epochs) % (self.total_epochs - self.warmup_epochs)  
-            progress_within_cycle = progress_within_cycle / (self.total_epochs - self.warmup_epochs)  
-            return [base_lr * (0.5 * (1. + math.cos(math.pi * (completed_cycles + progress_within_cycle) / self.cycles)))  
-                    for base_lr in self.base_lrs]  
+            
+    def __init__(self, optimizer, warmup_steps, total_steps, initial_lr=3e-5, min_lr=0.0, cycles=1, last_epoch=-1, verbose=False):
+        self.warmup_steps = warmup_steps
+        self.total_steps = total_steps
+        self.initial_lr = initial_lr
+        self.min_lr = min_lr
+        self.cycles = cycles
+        self.verbose = verbose
+        super(LinearWarmupCosineAnnealingLR, self).__init__(optimizer, last_epoch, verbose)
+        
+
+    def get_lr(self):
+        current_step = self.last_epoch + 1
+        cycle_length = self.total_steps // self.cycles
+        current_cycle = current_step // cycle_length
+        current_cycle_step = current_step % cycle_length
+
+        if current_cycle_step < self.warmup_steps:
+            lr = self.initial_lr * (current_cycle_step / self.warmup_steps)
+        else:
+            progress = (current_cycle_step - self.warmup_steps) / (cycle_length - self.warmup_steps)
+            lr = self.min_lr + 0.5 * (self.initial_lr - self.min_lr) * (1 + math.cos(math.pi * progress))
+
+        if self.verbose:
+            print(f"Cycle {current_cycle}, Step {current_cycle_step}: Learning Rate = {lr}")
+        
+        return [lr for _ in self.base_lrs]
