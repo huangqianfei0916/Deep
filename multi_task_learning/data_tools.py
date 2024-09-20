@@ -20,6 +20,8 @@ CUR_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class Reader():
+    label1 = []
+    label2 = []
 
 
     def __init__(self, train_path = "", max_token = 64, shuffle=False, tokenizer=None):
@@ -132,7 +134,7 @@ if __name__ == "__main__":
         data_set,
         collate_fn=data_set.collate_fn,
         shuffle=True,
-        batch_size=12,
+        batch_size=2,
     )
     print(len(dataloader))
 

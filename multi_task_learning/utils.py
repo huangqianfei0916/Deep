@@ -1,13 +1,10 @@
-"""
-Copyright (c) 2024 by huangqianfei@tju.edu.cn All Rights Reserved. 
-Author: huangqianfei@tju.edu.cn
-Date: 2024-09-01 11:56:16
-Description: 
-"""
+import os
 import logging
+import glob
 import torch  
 import math
 from torch.optim.lr_scheduler import _LRScheduler  
+from pathlib import Path
 
 
 def spider_log():
@@ -35,10 +32,52 @@ def spider_log():
 
 logger = spider_log()
 
+def save_model(model, tokenizer, optimizer,step, model_path):
+    try:
+
+        Path(model_path).mkdir(parents=True, exist_ok=True)
+        
+        state = {
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'step': step,
+        }
+        torch.save(state, model_path + "/model_state.pt")
+        tokenizer.save_pretrained(model_path)
+        logger.info(f" model saved -> {model_path}")
+
+    except Exception as e:
+        logger.error((e))
+
+        
+def load_model(model, optimizer, model_path):
+    filename = model_path + "/model_state.pt"
+    checkpoint = torch.load(filename)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    step = checkpoint['step']    
+
+    return model, optimizer, step
+
     
-class LinearWarmupCosineAnnealingLR(_LRScheduler):  
-            
-    def __init__(self, optimizer, warmup_steps, total_steps, initial_lr=3e-5, min_lr=0.0, cycles=1, last_epoch=-1, verbose=False):
+def update_version(model_path):
+    def version(x):
+        """version"""
+        x = int(x.split("-")[-1])
+        return x
+
+    ckpt_paths = glob.glob(os.path.join(model_path, "model-*"))
+
+    output_dir = ""
+    if len(ckpt_paths) > 0:
+        output_dir = sorted(ckpt_paths, key=version, reverse=True)[0]
+    
+    return output_dir
+
+
+class LinearWarmupCosineAnnealingLR(_LRScheduler):
+    """warm up"""
+    def __init__(self, optimizer, warmup_steps, total_steps, initial_lr=5e-5, min_lr=0.0, cycles=1, last_epoch=-1, verbose=False):
         self.warmup_steps = warmup_steps
         self.total_steps = total_steps
         self.initial_lr = initial_lr
@@ -64,3 +103,9 @@ class LinearWarmupCosineAnnealingLR(_LRScheduler):
             print(f"Cycle {current_cycle}, Step {current_cycle_step}: Learning Rate = {lr}")
         
         return [lr for _ in self.base_lrs]
+
+            
+if __name__ == "__main__":
+    model_path = "/Users/huangqianfei/workspace/learn_nlp/pytorch_ernie/model_checkpoint/"
+    output_dir = update_version(model_path)
+    print(output_dir)

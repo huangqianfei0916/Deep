@@ -15,19 +15,24 @@ import numpy as np
 from sklearn import metrics
 from transformers import BertTokenizer, ErnieModel
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter  
+from torch.utils.tensorboard import SummaryWriter
 
 from ernie import ErnieEncode
 from data_tools import Reader
 from utils import logger
+from utils import save_model
+from utils import load_model
+from utils import update_version
 from utils import LinearWarmupCosineAnnealingLR
 
 gpu = torch.cuda.is_available()
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device('cuda:0' if gpu else 'cpu')
 print("GPU available: ", gpu)
 print("CuDNN: ", torch.backends.cudnn.enabled)
 print("GPUs: ", torch.cuda.device_count())
 print("device: ", device)
+
+CUR_DIR = os.path.abspath(os.path.dirname(__file__))
 
 class FXBTask:
 
@@ -62,58 +67,67 @@ class FXBTask:
         total_loss = loss1 + loss2
         return total_loss, loss1, loss2
 
-    def train(self, train_path, n_epoch=5, max_length=32, batch_size=128, learning_rate=3e-5):        
+    def train(self, train_path, n_epoch=5, max_length=50, batch_size=64, learning_rate=3e-5, resume_training=False):        
         self.multi_task_model.train()
 
         data_set = Reader(
             train_path,
             tokenizer=self.tokenizer,
-            max_token=50,
+            max_token=max_length,
             shuffle=True,
         )
         dataloader = DataLoader(
             data_set,
             collate_fn=data_set.collate_fn,
             shuffle=True,
-            batch_size=64,
+            batch_size=batch_size,
         )
         swriter = SummaryWriter(os.path.join(self.save_dir, 'log'))
         
 
         training_steps = len(dataloader) * n_epoch
         print("training_steps:", training_steps)
+        self.multi_task_model.to(device)
 
         optimizer = torch.optim.AdamW(
             lr=learning_rate,
             params=self.multi_task_model.parameters(),
             weight_decay=0.01,
         )
-
+        
         lr_scheduler = LinearWarmupCosineAnnealingLR(optimizer,
-                                                     warmup_steps=training_steps * 0.003,
+                                                     warmup_steps=training_steps * 0.03,
                                                      total_steps=training_steps,
                                                      initial_lr=learning_rate,
                                                      cycles=3,
-                                                     verbose=False)  
+                                                     verbose=False,
+                                                     )  
         criterion1 = nn.CrossEntropyLoss()  
         criterion2 = nn.BCELoss()
-
         step = 0
+
+        if resume_training:
+            model_path = update_version(self.save_dir)
+            self.multi_task_model, optimizer, step = load_model(self.multi_task_model, optimizer, model_path)
+            logger.info("resume_training load " + model_path + " ok")
+
+
         progress_bar = tqdm(range(training_steps))
-        self.multi_task_model.to(device)
+        
+        swriter.add_scalar('lr', np.array(lr_scheduler.get_lr()), 0)
         for epoch in range(n_epoch):
 
             data_set = Reader(
                 train_path,
                 tokenizer=self.tokenizer,
-                max_token=50,
+                max_token=max_length,
                 shuffle=True,
             )
             dataloader = DataLoader(
                 data_set,
                 collate_fn=data_set.collate_fn,
                 shuffle=True,
-                batch_size=64,
+                batch_size=batch_size,
             )
             for i, batch in enumerate(dataloader):
                 if step % 50 == 0:
@@ -142,35 +156,15 @@ class FXBTask:
                     line = f"epoch:{epoch} step:{step} " + line
                     logger.info(line)
 
-
-            self.save(self.multi_task_model, self.tokenizer, name=f"/epoch-{epoch}")
+            model_path =  self.save_dir + f"/model-{step}/"
+            save_model(self.multi_task_model, self.tokenizer, optimizer, step, model_path)
             line = f"epoch:{epoch} step:{step} " + line
             logger.info(line)
             swriter.close()
 
-
-        self.save(self.multi_task_model, self.tokenizer, name=f"/epoch-{epoch}")
+        save_model(self.multi_task_model, self.tokenizer, optimizer, step, model_path)
         logger.info("trained")
 
-    def save(self, model, tokenizer, name):
-        try:
-            saved_dir = self.save_dir + name
-            
-            state_path = saved_dir + "/state"
-            Path(state_path).mkdir(parents=True, exist_ok=True)
-            tokenizer.save_pretrained(state_path)
-            torch.save(model.state_dict(), state_path + "/model_state.pt")
-            torch.save(model, state_path + "/model_all.pt")
-            logger.info(f" name:{name} saved -> {state_path}")
-
-            
-            # jit_path = saved_dir + "/jit"
-            # Path(jit_path).mkdir(parents=True, exist_ok=True)
-            # scripted_module = torch.jit.script(model)  
-            # torch.jit.save(scripted_module, jit_path + "/scripted_model.pt")
-
-        except Exception as e:
-            logger.error((e))
 
     def valid(self, batch):
         """valid"""
@@ -190,7 +184,6 @@ class FXBTask:
 
         logits2 = logits2.cpu().detach().numpy()
         logits2 = (logits2 > 0.5).astype(int)  
-
         acc = metrics.accuracy_score(labels2, logits2)   
         logger.info(f"task2 valid acc:{acc}")
         model.train()
@@ -208,6 +201,6 @@ if __name__ == "__main__":
         train_path="/Users/huangqianfei/workspace/learn_nlp/pytorch_ernie/data/train_data.txt",
         n_epoch=10,
         max_length=32,
-        batch_size=64,
+        batch_size=2,
     )
 
