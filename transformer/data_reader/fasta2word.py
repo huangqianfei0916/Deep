@@ -1,3 +1,10 @@
+"""
+Copyright (c) 2024 by huangqianfei@tju.edu.cn All Rights Reserved. 
+Author: huangqianfei@tju.edu.cn
+Date: 2023-10-21 09:47:52
+Description: 
+"""
+
 # splite the sequence
 # kmer :b = [string[i:i + 3] for i in range(len(string)) if i < len(string) - 2]
 # normal :b = [string[i:i + kmer] for i in range(0, len(string), kmer) if i < len(string) - k]
