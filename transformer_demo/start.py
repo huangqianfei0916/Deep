@@ -22,6 +22,7 @@ from data_tools import Reader
 from transformer.Models import Transformer
 from transformer import Constants
 from transformer.Optim import ScheduledOptim
+from utils import cal_performance
 
 gpu = torch.cuda.is_available()
 print("GPU available: ", gpu)
@@ -44,11 +45,11 @@ class TransformerTask(object):
                 src_pad_idx=0, 
                 trg_pad_idx=0)
 
-        print("================================================")
-        for key, value in self.model.named_parameters():
-            print(key)
-            print(value.shape)
-        print("================================================")
+        # print("================================================")
+        # for key, value in self.model.named_parameters():
+        #     print(key)
+        #     print(value.shape)
+        # print("================================================")
 
         self.criterion = nn.CrossEntropyLoss()
         self.tokenizer = BertTokenizer.from_pretrained(model_path)
@@ -69,6 +70,11 @@ class TransformerTask(object):
     def now(self):
         """get the current time"""
         return str(time.strftime('%Y-%m-%d %H:%M:%S'))
+    
+    def patch_trg(self, trg, pad_idx):
+        trg = trg.transpose(0, 1)
+        trg, gold = trg[:, :-1], trg[:, 1:].contiguous().view(-1)
+        return trg, gold
 
     def train_batch(self, item):
         """train batch"""
@@ -77,16 +83,18 @@ class TransformerTask(object):
         tgt_id = text2_ids.to(device)
 
         # forward
-        output = self.model(src_id, tgt_id)
-        loss = self.criterion(output, tgt_id)
-        print(output)
+        pred = self.model(src_id, tgt_id)
+        trg_seq, gold = map(lambda x: x.to(device), self.patch_trg(tgt_id, 0))
+        loss, n_correct, n_word = cal_performance(
+            pred, gold, 0, smoothing=True) 
+        print(pred)
         exit()
         return loss
 
     def train(self, train_path, n_epoch=2):
         """train"""
         self.model = self.model.to(device)
-        prev_time = datetime.now()
+        prev_time = self.now()
 
         for epoch in range(n_epoch):
             self.model = self.model.train()
@@ -95,7 +103,7 @@ class TransformerTask(object):
             data_set = Reader(
                 train_path,
                 tokenizer=self.tokenizer,
-                max_token=100,
+                max_token=80,
                 shuffle=True,
             )
 
@@ -117,7 +125,8 @@ class TransformerTask(object):
                 train_loss += loss.item()
 
 
-            cur_time = datetime.now()
+            cur_time = self.now()
+            print("Epoch: %d, Train Loss: %.4f, Time: %s" % (epoch, train_loss, cur_time - prev_time))
             prev_time = cur_time
 
 
