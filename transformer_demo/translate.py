@@ -55,17 +55,6 @@ def main():
     parser.add_argument('-max_seq_len', type=int, default=100)
     parser.add_argument('-no_cuda', action='store_true')
 
-    # TODO: Translate bpe encoded files 
-    #parser.add_argument('-src', required=True,
-    #                    help='Source sequence to decode (one line per sequence)')
-    #parser.add_argument('-vocab', required=True,
-    #                    help='Source sequence to decode (one line per sequence)')
-    # TODO: Batch translation
-    #parser.add_argument('-batch_size', type=int, default=30,
-    #                    help='Batch size')
-    #parser.add_argument('-n_best', type=int, default=1,
-    #                    help="""If verbose is set, will output the n_best
-    #                    decoded sentences""")
 
     opt = parser.parse_args()
     opt.cuda = not opt.no_cuda

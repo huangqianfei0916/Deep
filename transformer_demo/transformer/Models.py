@@ -155,16 +155,32 @@ class Transformer(nn.Module):
         self.d_model = d_model
 
         self.encoder = Encoder(
-            n_src_vocab=n_src_vocab, n_position=n_position,
-            d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
-            n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
-            pad_idx=src_pad_idx, dropout=dropout, scale_emb=scale_emb)
+            n_src_vocab=n_src_vocab,
+            n_position=n_position,
+            d_word_vec=d_word_vec,
+            d_model=d_model,
+            d_inner=d_inner,
+            n_layers=n_layers, 
+            n_head=n_head, 
+            d_k=d_k, 
+            d_v=d_v,
+            pad_idx=src_pad_idx, 
+            dropout=dropout, 
+            scale_emb=scale_emb)
 
         self.decoder = Decoder(
-            n_trg_vocab=n_trg_vocab, n_position=n_position,
-            d_word_vec=d_word_vec, d_model=d_model, d_inner=d_inner,
-            n_layers=n_layers, n_head=n_head, d_k=d_k, d_v=d_v,
-            pad_idx=trg_pad_idx, dropout=dropout, scale_emb=scale_emb)
+            n_trg_vocab=n_trg_vocab, 
+            n_position=n_position,
+            d_word_vec=d_word_vec, 
+            d_model=d_model, 
+            d_inner=d_inner,
+            n_layers=n_layers, 
+            n_head=n_head, 
+            d_k=d_k, 
+            d_v=d_v,
+            pad_idx=trg_pad_idx, 
+            dropout=dropout, 
+            scale_emb=scale_emb)
 
         self.trg_word_prj = nn.Linear(d_model, n_trg_vocab, bias=False)
 
@@ -191,10 +207,10 @@ class Transformer(nn.Module):
 
         enc_output, *_ = self.encoder(src_seq, src_mask)
         dec_output, *_ = self.decoder(trg_seq, trg_mask, enc_output, src_mask)
-        print(dec_output)
-        exit()
+
         seq_logit = self.trg_word_prj(dec_output)
         if self.scale_prj:
             seq_logit *= self.d_model ** -0.5
 
+        # [batch, len, dim] -> [batch*len, dim]
         return seq_logit.view(-1, seq_logit.size(2))

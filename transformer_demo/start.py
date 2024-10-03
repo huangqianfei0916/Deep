@@ -17,12 +17,14 @@ import argparse
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from transformers import BertTokenizer, ErnieModel
-from datetime import datetime
+from pathlib import Path
+
 from data_tools import Reader
 from transformer.Models import Transformer
 from transformer import Constants
 from transformer.Optim import ScheduledOptim
 from utils import cal_performance
+from utils import save_model
 
 gpu = torch.cuda.is_available()
 print("GPU available: ", gpu)
@@ -37,7 +39,9 @@ torch.cuda.manual_seed_all(2024)
 
 class TransformerTask(object):
     """transformer task"""
-    def __init__(self, model_path):
+    def __init__(self, model_path, save_dir):
+        self.save_dir = save_dir
+        Path(save_dir).mkdir(parents=True, exist_ok=True)
         
         self.model = Transformer(
                 n_src_vocab=39980, 
@@ -70,11 +74,6 @@ class TransformerTask(object):
     def now(self):
         """get the current time"""
         return str(time.strftime('%Y-%m-%d %H:%M:%S'))
-    
-    def patch_trg(self, trg, pad_idx):
-        trg = trg.transpose(0, 1)
-        trg, gold = trg[:, :-1], trg[:, 1:].contiguous().view(-1)
-        return trg, gold
 
     def train_batch(self, item):
         """train batch"""
@@ -82,23 +81,22 @@ class TransformerTask(object):
         src_id = text1_ids.to(device)
         tgt_id = text2_ids.to(device)
 
+        gold = tgt_id[:, 1:].contiguous().view(-1)
+        tgt_id = tgt_id[:, :-1]
+
         # forward
         pred = self.model(src_id, tgt_id)
-        trg_seq, gold = map(lambda x: x.to(device), self.patch_trg(tgt_id, 0))
-        loss, n_correct, n_word = cal_performance(
-            pred, gold, 0, smoothing=True) 
-        print(pred)
-        exit()
-        return loss
+        loss, n_correct, n_word = cal_performance(pred, gold, 0, smoothing=True)
+        
+        return loss, n_correct, n_word
 
     def train(self, train_path, n_epoch=2):
         """train"""
         self.model = self.model.to(device)
-        prev_time = self.now()
+        step = 0
 
         for epoch in range(n_epoch):
             self.model = self.model.train()
-            train_loss = 0
             
             data_set = Reader(
                 train_path,
@@ -111,29 +109,38 @@ class TransformerTask(object):
                 data_set,
                 collate_fn=data_set.collate_fn,
                 shuffle=True,
-                batch_size=1,
+                batch_size=64,
             )
 
-            for step, item in enumerate(dataloader):
-                loss = self.train_batch(item)
+            for i, item in enumerate(dataloader):
+                loss, n_correct, n_word = self.train_batch(item)
                 
                 # backward
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step_and_update_lr()
+                step += 1
 
-                train_loss += loss.item()
+                train_loss = loss.item()
 
+                if step % 20 == 0:
+                    print("step: %d, Train Loss: %.4f, n_correct: %d, n_word: %d" % (step, train_loss, n_correct, n_word))
+                    model_path =  self.save_dir + f"/model-{step}/"
+                    save_model(self.model, self.tokenizer, self.optimizer, step, model_path)
+            
+            print("step: %d, Train Loss: %.4f, n_correct: %d, n_word: %d" % (step, train_loss, n_correct, n_word))
+            model_path =  self.save_dir + f"/model-{step}/"
+            save_model(self.model, self.tokenizer, self.optimizer, step, model_path)
 
-            cur_time = self.now()
-            print("Epoch: %d, Train Loss: %.4f, Time: %s" % (epoch, train_loss, cur_time - prev_time))
-            prev_time = cur_time
 
 
 if __name__ == '__main__':
     """main"""
     model_path = "/Users/huangqianfei01/Desktop/learn/learn_nlp/transformer_demo/tokenizer/"
     train_path = CUR_DIR + "/data/part_query.txt"
-    task = TransformerTask(model_path)
+    task = TransformerTask(
+        model_path,
+        save_dir="model_checkpoint"
+        )
     
     task.train(train_path, n_epoch=2)

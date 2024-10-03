@@ -80,7 +80,6 @@ class Reader():
         max_len = max(max_len1, max_len2) + 2
 
         max_len = min(max_len, self.max_token)
-        print(max_len)
 
         text1_srcs = self.tokenizer(
             text1_list,
